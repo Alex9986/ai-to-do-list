@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextResponse } from "next/server";
+import OpenAI from "openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const { messages, currentTodos } = await request.json(); // Catch the current list
 
-   const systemPrompt = `
+    const systemPrompt = `
     You are the "System Architect" for a smart To-Do list. 
     The user will provide a command, and you must translate it into a structured list update.
 
@@ -48,34 +48,36 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: systemPrompt
+          content: systemPrompt,
         },
         ...messages,
       ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "update_todo_list",
-          description: "Update the user's todo list",
-          parameters: {
-            type: "object",
-            properties: {
-              newList: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "number" },
-                    text: { type: "string" },
-                    completed: { type: "boolean" }
-                  }
-                }
-              }
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "update_todo_list",
+            description: "Update the user's todo list",
+            parameters: {
+              type: "object",
+              properties: {
+                newList: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "number" },
+                      text: { type: "string" },
+                      completed: { type: "boolean" },
+                    },
+                  },
+                },
+              },
+              required: ["newList"],
             },
-            required: ["newList"]
-          }
-        }
-      }],
+          },
+        },
+      ],
       tool_choice: "auto",
     });
 
@@ -83,26 +85,25 @@ export async function POST(request: Request) {
 
     // Check if the AI decided to update the list
     if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
-    // Use 'as' to tell TypeScript exactly what this is
-    const toolCall = aiMessage.tool_calls[0] as any;
-    
-    // Now 'function' will definitely be recognized
-    const args = JSON.parse(toolCall.function.arguments);
-    const newList = args.newList;
-    
-    return NextResponse.json({
-      response: "I've updated your list!",
-      updatedTodos: newList 
-    });
-  }
+      // Use 'as' to tell TypeScript exactly what this is
+      const toolCall = aiMessage.tool_calls[0] as any;
+
+      // Now 'function' will definitely be recognized
+      const args = JSON.parse(toolCall.function.arguments);
+      const newList = args.newList;
+
+      return NextResponse.json({
+        response: "I've updated your list!",
+        updatedTodos: newList,
+      });
+    }
 
     // If no tool was called, just return the text
     return NextResponse.json({
       response: aiMessage.content,
     });
-
   } catch (error: any) {
-    console.error('OpenAI API error:', error);
+    console.error("OpenAI API error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
