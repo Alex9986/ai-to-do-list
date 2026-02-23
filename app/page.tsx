@@ -35,17 +35,38 @@ const Home: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 1. Mark as Done / Toggle
+  const toggleTodo = async (id: number) => {
+    const todoToToggle = todos.find((t) => t.id === id);
+    if (!todoToToggle) return;
+
+    // We "act" as the user and send a hidden command to the AI
+    const manualCommand = `${todoToToggle.completed ? "Uncheck" : "Complete"} the task: "${todoToToggle.text}"`;
+    // setInputMessage(manualCommand);
+    await askTheAI(manualCommand); // Modified askTheAI to accept an optional string
+  };
+
+  // 2. Remove Task
+  const removeTodo = async (id: number) => {
+    const todoToRemove = todos.find((t) => t.id === id);
+    if (!todoToRemove) return;
+
+    const manualCommand = `Remove the task: "${todoToRemove.text}"`;
+    await askTheAI(manualCommand);
+  };
+
   // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // --- AI LOGIC (UI Placeholder) ---
-  const askTheAI = async () => {
-    if (inputMessage.trim() === "") return;
+  const askTheAI = async (overrideCommand?: string) => {
+    const command = overrideCommand || inputMessage;
+    if (!command.trim()) return;
 
     setIsProcessing(true);
-    const userMessage = { role: "user" as const, content: inputMessage };
+    const userMessage = { role: "user" as const, content: command };
 
     try {
       const response = await fetch("/api/openai", {
@@ -53,18 +74,15 @@ const Home: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, userMessage],
-          currentTodos: todos, // Send the actual tasks
+          currentTodos: todos,
         }),
       });
 
       const data = await response.json();
-
       if (data.updatedTodos) {
-        // We REPLACE the state with the AI's version, we don't [...todos, data.updatedTodos]
         setTodos(data.updatedTodos);
-        console.log("List updated by AI:", data.updatedTodos);
-      } else {
-        console.log("AI did not trigger a list update.");
+        // Log the NEW data from the server, not the local 'todos' variable
+        console.log("New State from AI:", data.updatedTodos);
       }
 
       setMessages((prev) => [
@@ -72,9 +90,9 @@ const Home: React.FC = () => {
         userMessage,
         { role: "assistant", content: data.response },
       ]);
-      setInputMessage("");
+      if (!overrideCommand) setInputMessage(""); // Only clear if typed manually
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Action failed:", error);
     } finally {
       setIsProcessing(false);
     }
@@ -106,10 +124,13 @@ const Home: React.FC = () => {
             {todos.map((todo) => (
               <div
                 key={todo.id}
-                className="group flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all"
+                className="group flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200"
               >
                 <div className="flex items-center gap-3">
+                  {/* CHECKMARK BUTTON */}
                   <button
+                    onClick={() => toggleTodo(todo.id)}
+                    disabled={isProcessing}
                     className={`transition-colors ${todo.completed ? "text-green-500" : "text-slate-300 hover:text-blue-500"}`}
                   >
                     {todo.completed ? (
@@ -118,13 +139,20 @@ const Home: React.FC = () => {
                       <Circle size={22} />
                     )}
                   </button>
+
                   <span
                     className={`${todo.completed ? "line-through text-slate-400" : "text-slate-700 font-medium"}`}
                   >
                     {todo.text}
                   </span>
                 </div>
-                <button className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                {/* DELETE BUTTON */}
+                <button
+                  onClick={() => removeTodo(todo.id)}
+                  disabled={isProcessing}
+                  className="text-slate-300 hover:text-red-500 transition-colors p-2"
+                >
                   <Trash2 size={18} />
                 </button>
               </div>
@@ -172,7 +200,8 @@ const Home: React.FC = () => {
             disabled={isProcessing}
           />
           <button
-            onClick={askTheAI}
+            onClick={() => askTheAI()} // Wrap it in an arrow function
+            disabled={isProcessing}
             className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             <Send size={18} />
