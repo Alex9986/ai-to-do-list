@@ -177,6 +177,18 @@ const Home: React.FC = () => {
                 {msg.content}
               </div>
             ))}
+
+            {/* --- NEW: LOADING ANIMATION --- */}
+            {isProcessing && (
+              <div className="bg-white border border-slate-200 text-slate-400 mr-4 p-3 rounded-lg text-sm animate-pulse flex items-center gap-2">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce"></span>
+                </div>
+                <span>Agent is processing......</span>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         </section>
